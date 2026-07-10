@@ -58,3 +58,12 @@ drivers.
   branch of the IDT tracker's `U` for the rotation step; a small IDT-side change
   (an explicit `SU(2)` for `PlaneAlign`) makes those phase-exact too.
 - Massive carriers only (the helicity/canonical prep needs a rest frame).
+
+## References
+
+- K. Habermann and M. Mikhasenko, *Wigner rotations for cascade reactions*,
+  [Phys. Rev. D 111, 056015 (2025)](https://inspirehep.net/literature/2827198)
+  ([arXiv:2409.06913](https://arxiv.org/abs/2409.06913)).
+- M. Mikhasenko et al., *Dalitz-plot decomposition for three-body decays*,
+  [Phys. Rev. D 101, 034033 (2020)](https://inspirehep.net/literature/1758460)
+  ([arXiv:1910.04566](https://arxiv.org/abs/1910.04566)).

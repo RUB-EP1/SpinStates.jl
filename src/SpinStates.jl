@@ -12,6 +12,11 @@ the spinor phase. Under a transform with accumulated `SU(2)` matrix `U` the
 coefficients rotate by the Wigner rotation `w = u_basis(p′)⁻¹·U·u_basis(p)`,
 evaluated in `SU(2)` (never decoded from the `SO(3)` block, which loses the ±1
 branch) and lifted to spin `s` via `PartialWaveFunctions`.
+
+The conventions follow K. Habermann and M. Mikhasenko, *Wigner rotations for cascade
+reactions*, Phys. Rev. D 111, 056015 (2025), arXiv:2409.06913; and M. Mikhasenko et
+al., *Dalitz-plot decomposition for three-body decays*, Phys. Rev. D 101, 034033
+(2020), arXiv:1910.04566.
 """
 module SpinStates
 
@@ -62,7 +67,7 @@ Spin state of one particle carried by four-vector `p`, in `basis`
 and `coeffs[k]` is projection `m = s - (k-1)` (index `1` is `+s`, `end` is `-s`;
 see [`projections`](@ref)). Construct with [`spin_state`](@ref).
 """
-struct SpinState{B<:AbstractSpinBasis,T<:Real,F}
+struct SpinState{B <: AbstractSpinBasis, T <: Real, F}
     basis::B
     p::F
     twos::Int
@@ -80,7 +85,7 @@ projection eigenstate `|m⟩` for spin `s = twos/2` (`m` integer or half-integer
 function spin_state(basis::AbstractSpinBasis, p, coeffs::AbstractVector)
     cc = [complex(float(x)) for x in coeffs]
     T = real(eltype(cc))
-    return SpinState{typeof(basis),T,typeof(p)}(basis, p, length(cc) - 1, cc)
+    return SpinState{typeof(basis), T, typeof(p)}(basis, p, length(cc) - 1, cc)
 end
 
 function spin_state(basis::AbstractSpinBasis, p, twos::Integer, m::Real)
@@ -190,7 +195,7 @@ The three `(2s+1)×(2s+1)` spin matrices for spin `s = twos/2`, in the coefficie
 ordering of a [`SpinState`](@ref) (`m = +s … -s`). For `twos = 1` these are `σ/2`.
 """
 function spin_operators(twos::Integer)
-    ms = [(twos - 2 * (i - 1)) / 2 for i in 1:(twos+1)]   # +s … -s
+    ms = [(twos - 2 * (i - 1)) / 2 for i in 1:(twos + 1)]   # +s … -s
     s = twos / 2
     n = twos + 1
     Sp = zeros(ComplexF64, n, n)   # raising operator
@@ -231,6 +236,71 @@ branch of the IDT tracker's `U` for the rotation step.
 function track_spin(path, objs, idx::Integer, s::SpinState)
     (tracked, results) = apply_decay_instruction(path, init_tracked_state(objs))
     return (tracked.objs, results, evolve(s, tracked.tracker.U, tracked.objs[idx]))
+end
+
+# --- pretty printing -------------------------------------------------------
+
+_basis_name(::Helicity) = "helicity"
+_basis_name(::Canonical) = "canonical"
+_basis_tag(::Helicity) = "h"
+_basis_tag(::Canonical) = "c"
+
+_halfint(twon) = iseven(twon) ? string(twon ÷ 2) : string(twon, "/2")
+_halfint_tex(twon) = iseven(twon) ? string(twon ÷ 2) : "\\tfrac{$twon}{2}"
+
+_m_text(twom) = twom == 0 ? "0" : string(twom < 0 ? "-" : "+", _halfint(abs(twom)))
+_m_tex(twom) = twom == 0 ? "0" : string(twom < 0 ? "-" : "+", _halfint_tex(abs(twom)))
+
+function _coeff_str(z; digits = 3)
+    re, im = round(real(z); digits), round(imag(z); digits)
+    im == 0 && return string(re)
+    re == 0 && return string(im, "i")
+    return string("(", re, im < 0 ? "" : "+", im, "i)")
+end
+
+# join terms with sign-aware " + " / " - "
+function _join_terms(parts)
+    isempty(parts) && return "0"
+    out = parts[1]
+    for p in parts[2:end]
+        out *= startswith(p, "-") ? " - " * p[2:end] : " + " * p
+    end
+    return out
+end
+
+function _ket_expansion(s::SpinState; tex::Bool)
+    parts = map(enumerate(twos_range(s.twos))) do (k, twom)
+        c = _coeff_str(s.coeffs[k])
+        if tex
+            "$c\\,\\left|$(_halfint_tex(s.twos)),$(_m_tex(twom))\\right\\rangle"
+        else
+            "$c |$(_halfint(s.twos)),$(_m_text(twom))⟩"
+        end
+    end
+    return _join_terms(parts)
+end
+
+twos_range(twos) = twos:-2:-twos
+
+# compact, e.g. inside a tuple/array
+Base.show(io::IO, s::SpinState) =
+    print(io, "SpinState(", _basis_name(s.basis), ", s=", _halfint(s.twos), ")")
+
+function Base.show(io::IO, ::MIME"text/plain", s::SpinState)
+    p = s.p
+    r(x) = round(x; digits = 3)
+    println(
+        io, "SpinState · ", _basis_name(s.basis), " · s=", _halfint(s.twos),
+        " · p=(", r(p.px), ", ", r(p.py), ", ", r(p.pz), "; ", r(p.E), ")"
+    )
+    return print(io, "  ", _ket_expansion(s; tex = false))
+end
+
+function Base.show(io::IO, ::MIME"text/latex", s::SpinState)
+    return print(
+        io, "\$\$|\\psi\\rangle_{\\mathrm{$(_basis_tag(s.basis))}} = ",
+        _ket_expansion(s; tex = true), "\$\$"
+    )
 end
 
 end # module SpinStates

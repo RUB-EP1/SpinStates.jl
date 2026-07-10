@@ -10,7 +10,9 @@ boost_x(p, ξ) = p |> Ry(-π/2) |> Bz(cosh(ξ)) |> Ry(π/2)
 ```
 
 The two bases respond very differently to a **pure rotation** ``R`` — this is the
-cleanest way to tell them apart.
+cleanest way to tell them apart. The helicity/canonical distinction and its role in
+building aligned amplitudes are laid out in
+[Mikhasenko *et al.*, PRD 101, 034033 (2020)](https://inspirehep.net/literature/1758460).
 
 Set up a carrier and a rotation about ``\hat y``:
 

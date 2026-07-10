@@ -12,7 +12,8 @@ boost_x(p, ξ) = p |> Ry(-π/2) |> Bz(cosh(ξ)) |> Ry(π/2)
 The composition of two non-collinear boosts is a boost **times a rotation** — the
 [Wigner rotation](https://en.wikipedia.org/wiki/Wigner_rotation). This tutorial ties
 the ``w`` that SpinStates applies to the coefficients to the standard axis–angle
-picture.
+picture. The cascade-reaction treatment used here is developed in
+[Habermann & Mikhasenko, PRD 111, 056015 (2025)](https://inspirehep.net/literature/2827198).
 
 Start at rest, boost along ``\hat z`` (rapidity ``\xi_1``), then along ``\hat x``
 (rapidity ``\xi_2``):

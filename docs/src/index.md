@@ -74,11 +74,23 @@ s = spin_state(Helicity(), p1, 1, 1 // 2)                    # |+1/2⟩ helicity
 path = (ToHelicityFrame((1, 2, 3)), ToHelicityFrame((1, 2)))
 (final_objs, results, s′) = track_spin(path, objs, 1, s)
 
-round.(s′.coeffs; digits = 4)
+s′
 ```
 
-The tutorials that follow demonstrate what the coefficients mean and how they move.
+A [`SpinState`](@ref) renders as its ket expansion in the chosen basis. The tutorials
+that follow demonstrate what the coefficients mean and how they move.
 ```@contents
 Pages = ["spin_expectation.md", "rotations.md", "boosts.md", "wigner_rotation.md", "dirac_spinors.md"]
 Depth = 1
 ```
+
+## References
+
+The conventions, Wigner-rotation algebra, and helicity/canonical bookkeeping follow
+
+1. K. Habermann and M. Mikhasenko, *Wigner rotations for cascade reactions*,
+   [Phys. Rev. D **111**, 056015 (2025)](https://inspirehep.net/literature/2827198)
+   ([arXiv:2409.06913](https://arxiv.org/abs/2409.06913)).
+2. M. Mikhasenko *et al.*, *Dalitz-plot decomposition for three-body decays*,
+   [Phys. Rev. D **101**, 034033 (2020)](https://inspirehep.net/literature/1758460)
+   ([arXiv:1910.04566](https://arxiv.org/abs/1910.04566)).

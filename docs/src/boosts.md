@@ -33,7 +33,8 @@ boosts down a decay chain.
 ## A non-collinear boost rotates a canonical spin (Thomas–Wigner)
 
 Boost a particle whose momentum is **not** along the boost axis and the canonical
-state picks up a genuine rotation — the Thomas–Wigner rotation:
+state picks up a genuine rotation — the Thomas–Wigner rotation (see
+[Habermann & Mikhasenko, PRD 111, 056015 (2025)](https://inspirehep.net/literature/2827198)):
 
 ```@example t3
 px  = FourVector(0.5, 0.0, 0.0; M = 0.3)   # momentum along +x
