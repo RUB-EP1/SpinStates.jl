@@ -1,66 +1,59 @@
-# Rotations
+# 2. Rotations
 
 ```@setup t2
-using SpinStates, InstructionalDecayTrees, FourVectors, LinearAlgebra
-σx = ComplexF64[0 1; 1 0]; σy = ComplexF64[0 -im; im 0]; σz = ComplexF64[1 0; 0 -1]; I2 = ComplexF64[1 0; 0 1]
-ndotσ(n) = n[1]*σx + n[2]*σy + n[3]*σz
-Urot(n, θ) = cos(θ/2)*I2 - im*sin(θ/2)*ndotσ(n)
-Uboost(n, ξ) = cosh(ξ/2)*I2 + sinh(ξ/2)*ndotσ(n)
-boost_x(p, ξ) = p |> Ry(-π/2) |> Bz(cosh(ξ)) |> Ry(π/2)
+using SpinStates, FourVectors, LinearAlgebra
 ```
 
-The two bases respond very differently to a **pure rotation** ``R`` — this is the
-cleanest way to tell them apart. The helicity/canonical distinction and its role in
-building aligned amplitudes are laid out in
-[Mikhasenko *et al.*, PRD 101, 034033 (2020)](https://inspirehep.net/literature/1758460).
-
-Set up a carrier and a rotation about ``\hat y``:
+SpinStates extends the FourVectors transforms `Rx`, `Ry`, `Rz`, `Bz` so they act on
+a [`SpinState`](@ref) as well as on a four-vector. Applying one moves the **carrier
+momentum and the spin coefficients together**:
 
 ```@example t2
-β  = 0.6
 p0 = FourVector(0.4, -0.2, 0.3; M = 0.4)
-p1 = p0 |> Ry(β)             # rotated momentum
-U  = Urot([0, 1, 0], β)      # matching SU(2)
-c0 = normalize(ComplexF64[0.6, 0.8])
-nothing # hide
+s0 = spin_state(Canonical(), p0, normalize(ComplexF64[0.6, 0.8]))
+
+s1 = Ry(s0, 0.6)     # rotate by 0.6 about ŷ; equivalently  s0 |> Ry(0.6)
+s1
 ```
+
+The two bases respond very differently to such a **pure rotation** ``R`` — this is
+the cleanest way to tell them apart.
 
 ## Canonical: the spin follows, ``\text{coeffs}\to D(R)\,\text{coeffs}``
 
 The canonical boost ``u_C(p)=R\,B_z\,R^{-1}`` is *covariant*
-(``u_C(Rp)=R\,u_C(p)\,R^{-1}``), so the Wigner rotation collapses to ``w=R`` itself.
-The coefficients transform by ``D^s(R)`` — **independent of the momentum**:
+(``u_C(Rp)=R\,u_C(p)\,R^{-1}``), so the rotation the coefficients see is ``R`` itself
+and they transform by ``D^s(R)`` — **independent of the momentum**. For spin ``\tfrac12``
+that Wigner ``D``-matrix is just the ``SU(2)`` matrix [`Urot`](@ref):
 
 ```@example t2
-sc = evolve(spin_state(Canonical(), p0, c0), U, p1)
-sc.coeffs ≈ SpinStates._wignerD(1, U) * c0
-```
-
-`wigner_rotation` confirms the residual is exactly ``U``:
-
-```@example t2
-wigner_rotation(Canonical(), p0, p1, U) ≈ U
+β = 0.6
+Ry(s0, β).coeffs ≈ Urot([0, 1, 0], β) * s0.coeffs
 ```
 
 This is why canonical states are the natural home for ordinary angular-momentum
 algebra: a rotation acts on the spin index and nothing else.
 
-## Helicity: helicity is conserved (diagonal Wigner rotation)
+## Helicity: helicity is conserved (only a phase)
 
-For a helicity state the little group of a massive particle under rotations is a
-rotation *about the momentum*, ``R_z(\gamma)``. The Wigner rotation is therefore
-**diagonal** — each helicity component only picks up a phase, magnitudes are frozen:
+Helicity is the spin **along the momentum**. Under a rotation the momentum turns, and
+the massive-particle little group carries the spin along with it — a rotation *about
+the momentum*. Each helicity component therefore only picks up a phase; the
+magnitudes (the probabilities of ``\lambda=+\tfrac12`` vs ``-\tfrac12``) are frozen:
 
 ```@example t2
-wh = wigner_rotation(Helicity(), p0, p1, U)
-round.(wh; digits = 4)
+sh = spin_state(Helicity(), p0, normalize(ComplexF64[0.6, 0.8]))
+sh1 = Ry(sh, β)
+
+abs.(sh1.coeffs) ≈ abs.(sh.coeffs)     # helicity is conserved
 ```
 
 ```@example t2
-sh = evolve(spin_state(Helicity(), p0, c0), U, p1)
-abs.(sh.coeffs) ≈ abs.(c0)      # |amplitudes| unchanged: helicity is conserved
+sh1.coeffs ./ sh.coeffs                # …the change is a pure phase per component
 ```
 
 So under rotations: **canonical mixes** (by ``D(R)``), **helicity only rephases**.
-Both preserve the norm, and both agree with the rigid rotation of ``\langle S\rangle``
-from [the previous tutorial](spin_expectation.md).
+Both preserve the norm and both agree with the rigid rotation of ``\langle S\rangle``
+from [Tutorial 1](spin_expectation.md). The precise rotation the coefficients see —
+and how to read off its axis and angle — is the subject of
+[Tutorial 4](wigner_rotation.md).

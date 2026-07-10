@@ -52,6 +52,24 @@ end
         @test SS._wignerD(2, IDT._su2_ry(β)) ≈ d1 atol = 1.0e-12
     end
 
+    @testset "Urot/Uboost and direct-apply transforms" begin
+        # matrix builders match the IDT SU(2) convention
+        @test Urot([0, 1, 0], 0.7) ≈ IDT._su2_ry(0.7) atol = 1.0e-12
+        @test Urot([0, 0, 1], 0.7) ≈ IDT._su2_rz(0.7) atol = 1.0e-12
+        @test Uboost([0, 0, 1], 0.5) ≈ IDT._su2_bz(0.5) atol = 1.0e-12
+        # Rz/Ry/Rx/Bz applied to a SpinState == evolve with the matching matrix
+        c0 = normalize(ComplexF64[0.6, 0.8])
+        s = spin_state(Canonical(), P1, c0)
+        @test Ry(s, 0.6).coeffs ≈ evolve(s, Urot([0, 1, 0], 0.6), Ry(s.p, 0.6)).coeffs
+        @test Rz(s, 0.6).coeffs ≈ evolve(s, Urot([0, 0, 1], 0.6), Rz(s.p, 0.6)).coeffs
+        @test Rx(s, 0.6).coeffs ≈ evolve(s, Urot([1, 0, 0], 0.6), Rx(s.p, 0.6)).coeffs
+        @test Bz(s, 1.8).coeffs ≈ evolve(s, Uboost([0, 0, 1], acosh(1.8)), Bz(s.p, 1.8)).coeffs
+        # piping works and moves the carrier momentum
+        @test (s |> Rz(0.6)).p.px ≈ Rz(s.p, 0.6).px
+        # canonical spin follows a pure rotation by exactly D(R)
+        @test Ry(s, 0.6).coeffs ≈ SS._wignerD(1, Urot([0, 1, 0], 0.6)) * c0 atol = 1.0e-11
+    end
+
     @testset "spin_operators and spin_expectation" begin
         Sx, Sy, Sz = spin_operators(1)
         @test Sx ≈ [0 1; 1 0] / 2
@@ -69,7 +87,8 @@ end
 
     @testset "Spin state basics" begin
         s = spin_state(Helicity(), P1, 1, 1 // 2)
-        @test s.twos == 1 && s.coeffs == ComplexF64[1, 0]
+        @test twos(s) == 1 && s.coeffs == ComplexF64[1, 0]
+        @test s isa SpinState{1}   # doubled spin is a type parameter
         @test spin_state(Canonical(), P1, 2, -1).coeffs == ComplexF64[0, 0, 1]
         @test projections(1) == (1 // 2, -1 // 2)
         @test projections(2) == (1 // 1, 0 // 1, -1 // 1)

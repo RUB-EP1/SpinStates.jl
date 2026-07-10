@@ -35,32 +35,22 @@ U_\text{rot}(\hat n,\theta) = e^{-i\theta\,\hat n\cdot\vec\sigma/2},
 U_\text{boost}(\hat n,\xi) = e^{+\xi\,\hat n\cdot\vec\sigma/2},
 ```
 
-which match the package's internal `_su2_*` builders exactly:
+are provided by SpinStates as [`Urot`](@ref) and [`Uboost`](@ref), and match the
+`Rx`/`Ry`/`Rz`/`Bz` convention of
+[FourVectors.jl](https://github.com/mmikhasenko/FourVectors.jl) (`Bz` is
+parameterised by ``\gamma=\cosh\xi``):
 
 ```@example toolkit
-using SpinStates, InstructionalDecayTrees, FourVectors, LinearAlgebra
+using SpinStates, FourVectors, InstructionalDecayTrees, LinearAlgebra
 
-σx = ComplexF64[0 1; 1 0]
-σy = ComplexF64[0 -im; im 0]
-σz = ComplexF64[1 0; 0 -1]
-I2 = ComplexF64[1 0; 0 1]
-ndotσ(n) = n[1] * σx + n[2] * σy + n[3] * σz
-
-"SU(2) rotation about unit axis `n` by angle `θ`."
-Urot(n, θ) = cos(θ / 2) * I2 - im * sin(θ / 2) * ndotσ(n)
-
-"SL(2,C) boost along unit axis `n` with rapidity `ξ`."
-Uboost(n, ξ) = cosh(ξ / 2) * I2 + sinh(ξ / 2) * ndotσ(n)
-
-"Boost a four-vector along +x with rapidity `ξ`."
-boost_x(p, ξ) = p |> Ry(-π / 2) |> Bz(cosh(ξ)) |> Ry(π / 2)
-
-# consistency with the package convention
-Urot([0, 1, 0], 0.7) ≈ InstructionalDecayTrees._su2_ry(0.7)
+U = Urot([0, 1, 0], 0.7)             # SU(2) rotation about ŷ
+U ≈ InstructionalDecayTrees._su2_ry(0.7)
 ```
 
-The four-vector side uses [FourVectors.jl](https://github.com/mmikhasenko/FourVectors.jl)
-(`Rz`, `Ry`, `Bz`, ...); `Bz` is parameterised by ``\gamma=\cosh\xi``.
+You rarely build these by hand: `Rx`, `Ry`, `Rz`, and `Bz` from FourVectors are
+**extended to act on a [`SpinState`](@ref)** directly (Tutorials
+[2](rotations.md) and [3](boosts.md)), transforming the carrier momentum and the
+spin coefficients together.
 
 ## Quick example
 
@@ -86,11 +76,24 @@ Depth = 1
 
 ## References
 
-The conventions, Wigner-rotation algebra, and helicity/canonical bookkeeping follow
+**Foundations** — the helicity/canonical formalism, Wigner rotations, and spinor
+conventions used here are standard textbook material:
 
-1. K. Habermann and M. Mikhasenko, *Wigner rotations for cascade reactions*,
-   [Phys. Rev. D **111**, 056015 (2025)](https://inspirehep.net/literature/2827198)
-   ([arXiv:2409.06913](https://arxiv.org/abs/2409.06913)).
-2. M. Mikhasenko *et al.*, *Dalitz-plot decomposition for three-body decays*,
-   [Phys. Rev. D **101**, 034033 (2020)](https://inspirehep.net/literature/1758460)
-   ([arXiv:1910.04566](https://arxiv.org/abs/1910.04566)).
+- A. D. Martin and T. D. Spearman, *Elementary Particle Theory*, North-Holland
+  (1970) — [Inspire](https://inspirehep.net/literature/2104945).
+- S. U. Chung, *Spin Formalisms* (updated version II), CERN Yellow Report
+  CERN-71-8 — [CDS](https://cds.cern.ch/record/186421?ln=en).
+- J. D. Richman, *An Experimenter's Guide to the Helicity Formalism*,
+  CALT-68-1148 (1984) — [Inspire](https://inspirehep.net/literature/202987).
+- É. Gourgoulhon, *Special Relativity in General Frames*, Springer (2013) —
+  [Inspire](https://inspirehep.net/literature/1686144).
+
+**Advanced applications** — how this basic bookkeeping is put to work in realistic
+cascade decays:
+
+- K. Habermann and M. Mikhasenko, *Wigner rotations for cascade reactions*,
+  [Phys. Rev. D **111**, 056015 (2025)](https://inspirehep.net/literature/2827198)
+  ([arXiv:2409.06913](https://arxiv.org/abs/2409.06913)).
+- M. Mikhasenko *et al.*, *Dalitz-plot decomposition for three-body decays*,
+  [Phys. Rev. D **101**, 034033 (2020)](https://inspirehep.net/literature/1758460)
+  ([arXiv:1910.04566](https://arxiv.org/abs/1910.04566)).

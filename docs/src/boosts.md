@@ -1,58 +1,49 @@
-# Boosts
+# 3. Boosts
 
 ```@setup t3
-using SpinStates, InstructionalDecayTrees, FourVectors, LinearAlgebra
-σx = ComplexF64[0 1; 1 0]; σy = ComplexF64[0 -im; im 0]; σz = ComplexF64[1 0; 0 -1]; I2 = ComplexF64[1 0; 0 1]
-ndotσ(n) = n[1]*σx + n[2]*σy + n[3]*σz
-Urot(n, θ) = cos(θ/2)*I2 - im*sin(θ/2)*ndotσ(n)
-Uboost(n, ξ) = cosh(ξ/2)*I2 + sinh(ξ/2)*ndotσ(n)
-boost_x(p, ξ) = p |> Ry(-π/2) |> Bz(cosh(ξ)) |> Ry(π/2)
+using SpinStates, FourVectors, LinearAlgebra
 ```
 
-Under boosts the roles from the previous tutorial swap over.
+Boosts act on a [`SpinState`](@ref) the same way — `Bz(s, γ)` (parameterised by
+``\gamma=\cosh\xi``) moves the carrier momentum and the coefficients together. Under
+boosts the roles from [Tutorial 2](rotations.md) swap over.
 
 ## Helicity is invariant under a collinear boost
 
 Helicity is the spin along the momentum; a boost **along that same direction** does
-not change the momentum direction, so nothing happens to the coefficients — not even
-a phase:
+not turn the momentum, so nothing happens to the coefficients — not even a phase:
 
 ```@example t3
-ξ  = acosh(1.8)                       # rapidity of the applied boost
-pz = FourVector(0.0, 0.0, 0.5; M = 0.3)   # momentum along +z
-c0 = normalize(ComplexF64[0.6, 0.8])
+pz = FourVector(0.0, 0.0, 0.5; M = 0.3)          # momentum along +z
+sh = spin_state(Helicity(), pz, normalize(ComplexF64[0.6, 0.8]))
 
-sh  = spin_state(Helicity(), pz, c0)
-sh2 = evolve(sh, Uboost([0, 0, 1], ξ), pz |> Bz(cosh(ξ)))
-sh2.coeffs ≈ c0
+Bz(sh, 1.8).coeffs ≈ sh.coeffs                    # boost along +z: unchanged
 ```
 
-This is the property that makes helicity the convention of choice for sequential
+This is the property that makes helicity the convention of choice for the sequential
 boosts down a decay chain.
 
 ## A non-collinear boost rotates a canonical spin (Thomas–Wigner)
 
-Boost a particle whose momentum is **not** along the boost axis and the canonical
-state picks up a genuine rotation — the Thomas–Wigner rotation (see
-[Habermann & Mikhasenko, PRD 111, 056015 (2025)](https://inspirehep.net/literature/2827198)):
+Boost a particle whose momentum is **not** along the boost axis and a canonical state
+picks up a genuine rotation — the Thomas–Wigner rotation. Take a particle moving
+along ``+\hat x`` and boost it along ``+\hat z``:
 
 ```@example t3
-px  = FourVector(0.5, 0.0, 0.0; M = 0.3)   # momentum along +x
-px2 = px |> Bz(cosh(ξ))                     # boosted along +z
+px = FourVector(0.5, 0.0, 0.0; M = 0.3)          # momentum along +x
+sc = spin_state(Canonical(), px, ComplexF64[1, 0])  # pure |+1/2⟩ along lab ẑ
 
-w = wigner_rotation(Canonical(), px, px2, Uboost([0, 0, 1], ξ))
-Ω = 2 * acos(clamp(real(tr(w)) / 2, -1, 1)) # rotation angle from tr w = 2cos(Ω/2)
+sc2 = Bz(sc, 1.8)
+sc2                                               # the lower component is now populated
 ```
 
-The mean spin ``\langle S\rangle`` tilts by this angle in the ``xz``-plane:
+The mean spin ``\langle S\rangle`` tilts in the ``xz``-plane by the Wigner angle:
 
 ```@example t3
-s0 = spin_state(Canonical(), px, ComplexF64[1, 0])
-s1 = evolve(s0, Uboost([0, 0, 1], ξ), px2)
-(spin_expectation(s0), round.(spin_expectation(s1); digits = 4))
+(spin_expectation(sc), round.(spin_expectation(sc2); digits = 4))
 ```
 
-A boost is *not* a rotation, yet a sequence of them behaves as one — which is exactly
-the [Wigner rotation](wigner_rotation.md) of the next tutorial. The helicity state,
-meanwhile, would only rephase here: it is the boost **plane**, not the boost itself,
-that the two bases see differently.
+A boost is *not* a rotation, yet a canonical state responds to one as if rotated; a
+helicity state in the same situation would only rephase. That "boost that acts like a
+rotation" is exactly the [Wigner rotation](wigner_rotation.md) of the next tutorial,
+where we extract its axis and angle.

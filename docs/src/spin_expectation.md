@@ -1,12 +1,7 @@
 # Spin orientation ⟨S⟩
 
 ```@setup t1
-using SpinStates, InstructionalDecayTrees, FourVectors, LinearAlgebra
-σx = ComplexF64[0 1; 1 0]; σy = ComplexF64[0 -im; im 0]; σz = ComplexF64[1 0; 0 -1]; I2 = ComplexF64[1 0; 0 1]
-ndotσ(n) = n[1]*σx + n[2]*σy + n[3]*σz
-Urot(n, θ) = cos(θ/2)*I2 - im*sin(θ/2)*ndotσ(n)
-Uboost(n, ξ) = cosh(ξ/2)*I2 + sinh(ξ/2)*ndotσ(n)
-boost_x(p, ξ) = p |> Ry(-π/2) |> Bz(cosh(ξ)) |> Ry(π/2)
+using SpinStates, FourVectors, LinearAlgebra
 ```
 
 A spin state's coefficients are amplitudes in its **rest frame**. The observable that
@@ -48,17 +43,13 @@ v = spin_expectation(spin_state(Helicity(), p, c))
 
 Evolving the state moves ``\langle S\rangle`` rigidly: the coefficients rotate by the
 Wigner rotation ``D^s(w)``, so ``\langle S\rangle`` rotates by the corresponding
-``SO(3)`` rotation. Rotate the whole configuration about ``\hat y`` by ``\beta`` and
-watch a canonical spin follow:
+``SO(3)`` rotation. Rotate a canonical spin about ``\hat y`` by ``\beta`` — applying
+`Ry` directly to the state (see [Tutorial 2](rotations.md)) — and watch it follow:
 
 ```@example t1
 β = 0.7
-p0 = FourVector(0.4, -0.2, 0.3; M = 0.4)
-p1 = p0 |> Ry(β)                                 # momentum rotates
-U  = Urot([0, 1, 0], β)                          # matching SU(2)
-
-s0 = spin_state(Canonical(), p0, c)
-s1 = evolve(s0, U, p1)
+s0 = spin_state(Canonical(), FourVector(0.4, -0.2, 0.3; M = 0.4), c)
+s1 = Ry(s0, β)                                   # rotate state + momentum together
 
 before = spin_expectation(s0)
 after  = spin_expectation(s1)

@@ -13,23 +13,21 @@ coefficients rotate by the Wigner rotation `w = u_basis(p′)⁻¹·U·u_basis(p
 evaluated in `SU(2)` (never decoded from the `SO(3)` block, which loses the ±1
 branch) and lifted to spin `s` via `PartialWaveFunctions`.
 
-The conventions follow K. Habermann and M. Mikhasenko, *Wigner rotations for cascade
-reactions*, Phys. Rev. D 111, 056015 (2025), arXiv:2409.06913; and M. Mikhasenko et
-al., *Dalitz-plot decomposition for three-body decays*, Phys. Rev. D 101, 034033
-(2020), arXiv:1910.04566.
+See the documentation home page for references.
 """
 module SpinStates
 
 using LinearAlgebra
-using FourVectors: azimuthal_angle, polar_angle, boost_gamma
+using FourVectors: FourVectors, azimuthal_angle, polar_angle, boost_gamma
+import FourVectors: Rx, Ry, Rz, Bz
 using PartialWaveFunctions: wignerD_doublearg
 using InstructionalDecayTrees: InstructionalDecayTrees, init_tracked_state, apply_decay_instruction
 
 const IDT = InstructionalDecayTrees
 
 export AbstractSpinBasis, Helicity, Canonical
-export SpinState, spin_state, projections, to_basis
-export wigner_rotation, evolve, track_spin
+export SpinState, spin_state, twos, projections, to_basis
+export Urot, Uboost, wigner_rotation, evolve, track_spin
 export spin_operators, spin_expectation
 
 """
@@ -60,40 +58,48 @@ the fixed lab `z` axis.
 struct Canonical <: AbstractSpinBasis end
 
 """
-    SpinState(basis, p, twos, coeffs)
+    SpinState{TWOS}(basis, p, coeffs)
 
 Spin state of one particle carried by four-vector `p`, in `basis`
-([`Helicity`](@ref) or [`Canonical`](@ref)). `twos = 2s`, `length(coeffs) = 2s+1`,
-and `coeffs[k]` is projection `m = s - (k-1)` (index `1` is `+s`, `end` is `-s`;
-see [`projections`](@ref)). Construct with [`spin_state`](@ref).
+([`Helicity`](@ref) or [`Canonical`](@ref)). The doubled spin `TWOS = 2s` is a type
+parameter, so the spin is known at compile time (and rotations/boosts can dispatch
+on it). `length(coeffs) = 2s+1`, and `coeffs[k]` is projection `m = s - (k-1)`
+(index `1` is `+s`, `end` is `-s`; see [`projections`](@ref)). Read the spin back
+with [`twos`](@ref); construct with [`spin_state`](@ref).
 """
-struct SpinState{B <: AbstractSpinBasis, T <: Real, F}
+struct SpinState{TWOS, B <: AbstractSpinBasis, T <: Real, F}
     basis::B
     p::F
-    twos::Int
     coeffs::Vector{Complex{T}}
 end
+
+"""
+    twos(s::SpinState) -> Int
+
+The doubled spin `2s` of the state (a type parameter).
+"""
+twos(::SpinState{TWOS}) where {TWOS} = TWOS
 
 """
     spin_state(basis, p, coeffs)
     spin_state(basis, p, twos, m)
 
 Build a [`SpinState`](@ref) on carrier four-vector `p`. The first form takes an
-explicit coefficient vector (`twos = length(coeffs) - 1`); the second builds the
+explicit coefficient vector (`2s = length(coeffs) - 1`); the second builds the
 projection eigenstate `|m⟩` for spin `s = twos/2` (`m` integer or half-integer).
 """
 function spin_state(basis::AbstractSpinBasis, p, coeffs::AbstractVector)
     cc = [complex(float(x)) for x in coeffs]
     T = real(eltype(cc))
-    return SpinState{typeof(basis), T, typeof(p)}(basis, p, length(cc) - 1, cc)
+    return SpinState{length(cc) - 1, typeof(basis), T, typeof(p)}(basis, p, cc)
 end
 
-function spin_state(basis::AbstractSpinBasis, p, twos::Integer, m::Real)
+function spin_state(basis::AbstractSpinBasis, p, two_s::Integer, m::Real)
     twom = round(Int, 2m)
-    (abs(twom) <= twos && iseven(twos - twom)) ||
-        throw(ArgumentError("projection 2m=$twom incompatible with twos=$twos"))
-    c = zeros(ComplexF64, twos + 1)
-    c[(twos - twom) ÷ 2 + 1] = one(ComplexF64)
+    (abs(twom) <= two_s && iseven(two_s - twom)) ||
+        throw(ArgumentError("projection 2m=$twom incompatible with 2s=$two_s"))
+    c = zeros(ComplexF64, two_s + 1)
+    c[(two_s - twom) ÷ 2 + 1] = one(ComplexF64)
     return spin_state(basis, p, c)
 end
 
@@ -105,7 +111,31 @@ spin-`twos/2` [`SpinState`](@ref): `(s, s-1, …, -s)`.
 """
 projections(twos::Integer) = ntuple(i -> (twos - 2 * (i - 1)) // 2, twos + 1)
 
-# --- representation internals (reuse the SU(2)/decode convention of IDT) ---
+# --- SU(2) / SL(2,C) matrices ------------------------------------------------
+
+const _σ1 = ComplexF64[0 1; 1 0]
+const _σ2 = ComplexF64[0 -im; im 0]
+const _σ3 = ComplexF64[1 0; 0 -1]
+_id2() = ComplexF64[1 0; 0 1]
+_ndotσ(n) = n[1] * _σ1 + n[2] * _σ2 + n[3] * _σ3
+
+"""
+    Urot(n̂, θ) -> Matrix
+
+The `2×2` `SU(2)` rotation `e^{-iθ\\,n̂·σ/2}` about unit axis `n̂` by angle `θ`.
+Matches the `Rx`/`Ry`/`Rz` convention of `FourVectors`.
+"""
+Urot(n̂, θ) = cos(θ / 2) * _id2() - im * sin(θ / 2) * _ndotσ(n̂)
+
+"""
+    Uboost(n̂, ξ) -> Matrix
+
+The `2×2` `SL(2,C)` boost `e^{+ξ\\,n̂·σ/2}` along unit axis `n̂` with rapidity `ξ`.
+Matches the `Bz` convention of `FourVectors` (`γ = cosh ξ`).
+"""
+Uboost(n̂, ξ) = cosh(ξ / 2) * _id2() + sinh(ξ / 2) * _ndotσ(n̂)
+
+# --- representation internals (reuse the SU(2) convention of IDT) -------------
 
 # 2x2 SL(2,C) preparation elements built from the IDT SU(2) primitives. `p`
 # supplies (ϕ, θ, ξ). Helicity uses two angles (the third ZYZ angle commutes with
@@ -155,12 +185,15 @@ function _wignerD(twos::Integer, w::AbstractMatrix)
     ]
 end
 
+# --- evolution ---------------------------------------------------------------
+
 """
     wigner_rotation(basis, p_from, p_to, U) -> Matrix
 
 The `2×2` `SU(2)` Wigner rotation `u_basis(p_to)⁻¹ · U · u_basis(p_from)` induced on
 a `basis` spin state whose carrier moves from `p_from` to `p_to` under a transform
 with accumulated `SU(2)` matrix `U`. Unitary (rest→rest); the boost parts cancel.
+This is the rotation that acts on the coefficients (via `Dˢ`) in [`evolve`](@ref).
 """
 wigner_rotation(basis::AbstractSpinBasis, p_from, p_to, U::AbstractMatrix) =
     _prep_su2(basis, p_to) \ (U * _prep_su2(basis, p_from))
@@ -171,11 +204,23 @@ wigner_rotation(basis::AbstractSpinBasis, p_from, p_to, U::AbstractMatrix) =
 Evolve `s` to carrier momentum `p_new` under a transform with accumulated `SU(2)`
 matrix `U`, applying `Dˢ(wigner_rotation(...))` to the coefficients. `U` may be a
 single step or a full path's accumulated matrix (the update telescopes).
+
+For the common axis-aligned transforms you can instead apply `Rx`, `Ry`, `Rz`, `Bz`
+directly to a [`SpinState`](@ref) (see below), which calls `evolve` for you.
 """
 function evolve(s::SpinState, U::AbstractMatrix, p_new)
     w = wigner_rotation(s.basis, s.p, p_new, U)
-    return SpinState(s.basis, p_new, s.twos, _wignerD(s.twos, w) * s.coeffs)
+    return spin_state(s.basis, p_new, _wignerD(twos(s), w) * s.coeffs)
 end
+
+# Direct application of the standard transforms to a spin state: transform the
+# carrier momentum with FourVectors and evolve the coefficients with the matching
+# SU(2)/SL(2,C) matrix. `s |> Rz(ϕ)` and `Rz(s, ϕ)` both route here.
+_pt(s::SpinState) = typeof(s.p.px)
+Rx(s::SpinState, α::Real) = evolve(s, Urot((1, 0, 0), α), Rx(s.p, convert(_pt(s), α)))
+Ry(s::SpinState, θ::Real) = evolve(s, Urot((0, 1, 0), θ), Ry(s.p, convert(_pt(s), θ)))
+Rz(s::SpinState, ϕ::Real) = evolve(s, Urot((0, 0, 1), ϕ), Rz(s.p, convert(_pt(s), ϕ)))
+Bz(s::SpinState, γ::Real) = evolve(s, Uboost((0, 0, 1), acosh(γ)), Bz(s.p, convert(_pt(s), γ)))
 
 """
     to_basis(s::SpinState, newbasis) -> SpinState
@@ -185,7 +230,7 @@ rotating the coefficients by `Dˢ(u_new(p)⁻¹ · u_old(p))`.
 """
 function to_basis(s::SpinState, newbasis::AbstractSpinBasis)
     w = _prep_su2(newbasis, s.p) \ _prep_su2(s.basis, s.p)
-    return SpinState(newbasis, s.p, s.twos, _wignerD(s.twos, w) * s.coeffs)
+    return spin_state(newbasis, s.p, _wignerD(twos(s), w) * s.coeffs)
 end
 
 """
@@ -204,7 +249,7 @@ function spin_operators(twos::Integer)
         i >= 1 && (Sp[i, j] = sqrt(s * (s + 1) - ms[j] * (ms[j] + 1)))
     end
     Sm = collect(Sp')
-    return ((Sp + Sm) / 2, (Sp - Sm) / (2im), Diagonal(ComplexF64.(ms)) |> Matrix)
+    return ((Sp + Sm) / 2, (Sp - Sm) / (2im), Matrix(Diagonal(ComplexF64.(ms))))
 end
 
 """
@@ -215,7 +260,7 @@ in the state's rest frame, computed from its coefficients. A pure state has
 `‖⟨Ŝ⟩‖ = s`; the direction is the spin's mean orientation on the Bloch sphere.
 """
 function spin_expectation(s::SpinState)
-    Sx, Sy, Sz = spin_operators(s.twos)
+    Sx, Sy, Sz = spin_operators(twos(s))
     c = s.coeffs
     nrm = real(c' * c)
     return [real(c' * S * c) / nrm for S in (Sx, Sy, Sz)]
@@ -238,7 +283,7 @@ function track_spin(path, objs, idx::Integer, s::SpinState)
     return (tracked.objs, results, evolve(s, tracked.tracker.U, tracked.objs[idx]))
 end
 
-# --- pretty printing -------------------------------------------------------
+# --- pretty printing ---------------------------------------------------------
 
 _basis_name(::Helicity) = "helicity"
 _basis_name(::Canonical) = "canonical"
@@ -269,28 +314,26 @@ function _join_terms(parts)
 end
 
 function _ket_expansion(s::SpinState; tex::Bool)
-    parts = map(enumerate(twos_range(s.twos))) do (k, twom)
+    parts = map(enumerate(twos(s):-2:-twos(s))) do (k, twom)
         c = _coeff_str(s.coeffs[k])
-        if tex
-            "$c\\,\\left|$(_halfint_tex(s.twos)),$(_m_tex(twom))\\right\\rangle"
+        return if tex
+            "$c\\,\\left|$(_halfint_tex(twos(s))),$(_m_tex(twom))\\right\\rangle"
         else
-            "$c |$(_halfint(s.twos)),$(_m_text(twom))⟩"
+            "$c |$(_halfint(twos(s))),$(_m_text(twom))⟩"
         end
     end
     return _join_terms(parts)
 end
 
-twos_range(twos) = twos:-2:-twos
-
 # compact, e.g. inside a tuple/array
 Base.show(io::IO, s::SpinState) =
-    print(io, "SpinState(", _basis_name(s.basis), ", s=", _halfint(s.twos), ")")
+    print(io, "SpinState(", _basis_name(s.basis), ", s=", _halfint(twos(s)), ")")
 
 function Base.show(io::IO, ::MIME"text/plain", s::SpinState)
     p = s.p
     r(x) = round(x; digits = 3)
     println(
-        io, "SpinState · ", _basis_name(s.basis), " · s=", _halfint(s.twos),
+        io, "SpinState · ", _basis_name(s.basis), " · s=", _halfint(twos(s)),
         " · p=(", r(p.px), ", ", r(p.py), ", ", r(p.pz), "; ", r(p.E), ")"
     )
     return print(io, "  ", _ket_expansion(s; tex = false))
