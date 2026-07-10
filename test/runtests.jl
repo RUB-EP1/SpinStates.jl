@@ -52,6 +52,21 @@ end
         @test SS._wignerD(2, IDT._su2_ry(β)) ≈ d1 atol = 1e-12
     end
 
+    @testset "spin_operators and spin_expectation" begin
+        Sx, Sy, Sz = spin_operators(1)
+        @test Sx ≈ [0 1; 1 0] / 2
+        @test Sy ≈ [0 -im; im 0] / 2
+        @test Sz ≈ [1 0; 0 -1] / 2
+        # spin-1 satisfies the su(2) algebra [Sx,Sy] = i Sz
+        Jx, Jy, Jz = spin_operators(2)
+        @test Jx * Jy - Jy * Jx ≈ im * Jz atol = 1e-12
+        # a pure state points with |⟨S⟩| = s; eigenstate along its quantization axis
+        @test spin_expectation(spin_state(Helicity(), P1, 1, 1 // 2)) ≈ [0, 0, 0.5]
+        @test spin_expectation(spin_state(Helicity(), P1, ComplexF64[1, 1] / sqrt(2))) ≈ [0.5, 0, 0] atol =
+            1e-12
+        @test norm(spin_expectation(spin_state(Canonical(), P2, 2, 1))) ≈ 1 atol = 1e-12
+    end
+
     @testset "Spin state basics" begin
         s = spin_state(Helicity(), P1, 1, 1 // 2)
         @test s.twos == 1 && s.coeffs == ComplexF64[1, 0]

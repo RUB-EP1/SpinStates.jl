@@ -1,6 +1,7 @@
 # SpinStates.jl
 
 [![Test](https://github.com/RUB-EP1/SpinStates.jl/actions/workflows/Test.yml/badge.svg)](https://github.com/RUB-EP1/SpinStates.jl/actions/workflows/Test.yml)
+[![Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://rub-ep1.github.io/SpinStates.jl/dev/)
 
 SpinStates.jl tracks the spin state of a particle through a decay program in either
 the **helicity** or **canonical** basis, reporting how its spin-projection

@@ -25,6 +25,7 @@ const IDT = InstructionalDecayTrees
 export AbstractSpinBasis, Helicity, Canonical
 export SpinState, spin_state, projections, to_basis
 export wigner_rotation, evolve, track_spin
+export spin_operators, spin_expectation
 
 """
     AbstractSpinBasis
@@ -180,6 +181,39 @@ rotating the coefficients by `Dˢ(u_new(p)⁻¹ · u_old(p))`.
 function to_basis(s::SpinState, newbasis::AbstractSpinBasis)
     w = _prep_su2(newbasis, s.p) \ _prep_su2(s.basis, s.p)
     return SpinState(newbasis, s.p, s.twos, _wignerD(s.twos, w) * s.coeffs)
+end
+
+"""
+    spin_operators(twos) -> (Sx, Sy, Sz)
+
+The three `(2s+1)×(2s+1)` spin matrices for spin `s = twos/2`, in the coefficient
+ordering of a [`SpinState`](@ref) (`m = +s … -s`). For `twos = 1` these are `σ/2`.
+"""
+function spin_operators(twos::Integer)
+    ms = [(twos - 2 * (i - 1)) / 2 for i in 1:(twos+1)]   # +s … -s
+    s = twos / 2
+    n = twos + 1
+    Sp = zeros(ComplexF64, n, n)   # raising operator
+    for j in 1:n
+        i = j - 1                   # m_i = m_j + 1
+        i >= 1 && (Sp[i, j] = sqrt(s * (s + 1) - ms[j] * (ms[j] + 1)))
+    end
+    Sm = collect(Sp')
+    return ((Sp + Sm) / 2, (Sp - Sm) / (2im), Diagonal(ComplexF64.(ms)) |> Matrix)
+end
+
+"""
+    spin_expectation(s::SpinState) -> Vector{Float64}
+
+The spin expectation vector `⟨Ŝ⟩ = ⟨ψ|Ŝ|ψ⟩ / ⟨ψ|ψ⟩` (with `Ŝ = σ/2` for spin-½)
+in the state's rest frame, computed from its coefficients. A pure state has
+`‖⟨Ŝ⟩‖ = s`; the direction is the spin's mean orientation on the Bloch sphere.
+"""
+function spin_expectation(s::SpinState)
+    Sx, Sy, Sz = spin_operators(s.twos)
+    c = s.coeffs
+    nrm = real(c' * c)
+    return [real(c' * S * c) / nrm for S in (Sx, Sy, Sz)]
 end
 
 """
