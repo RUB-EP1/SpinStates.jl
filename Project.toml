@@ -14,7 +14,7 @@ InstructionalDecayTrees = {url = "https://github.com/RUB-EP1/InstructionalDecayT
 
 [compat]
 FourVectors = "0.3.4"
-InstructionalDecayTrees = "0.3"
+InstructionalDecayTrees = "0.4"
 LinearAlgebra = "1"
 PartialWaveFunctions = "0.2"
 julia = "1.11"
