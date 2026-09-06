@@ -12,7 +12,7 @@ the Wigner ``D``-matrix.
 A state is ``|\text{FourVector}, 2s, \text{coeffs}\rangle``: the carrier
 four-vector fixes the momentum geometry ``(\phi,\theta,\xi)``, and
 ``\text{coeffs}\in\mathbb{C}^{2s+1}`` carry the spin content plus the spinor phase.
-Under a transform with accumulated ``SU(2)`` matrix ``U`` the coefficients rotate by
+Under a transform with accumulated ``SL(2,\mathbb C)`` matrix ``U`` the coefficients rotate by
 the **Wigner rotation**
 
 ```math
@@ -21,8 +21,20 @@ w = u_\text{basis}(p')^{-1}\, U\, u_\text{basis}(p),
 ```
 
 with prep ``u_H = R(\phi,\theta)\,B_z`` (helicity) or
-``u_C = R\,B_z\,R^{-1}`` (canonical). ``w`` is built entirely in ``SU(2)`` — never
-decoded from the ``SO(3)`` block, which would lose the ``\pm1`` branch.
+``u_C = R\,B_z\,R^{-1}`` (canonical). For consistent ``p,p'`` and ``U``, ``w`` is
+an ``SU(2)`` element. It is computed from the tracked ``SL(2,\mathbb C)`` matrices,
+never decoded from the ``SO(3)`` block, which would lose the ``\pm1`` branch.
+
+The conventional notation ``|p;\lambda\rangle_h`` is shorthand: the four-momentum
+alone fixes neither the transverse spin axes nor the double-cover branch. What it
+means here is
+``|p;\lambda\rangle_h\equiv|L_p^{(\mathrm{std.})};\lambda\rangle_h``, where
+``L_p^{(\mathrm{std.})}=R_z(\phi_p)R_y(\theta_p)B_z(\eta_p)\in
+SL(2,\mathbb C)`` is the declared standard lift and
+``p\!\cdot\!\sigma=mL_p^{(\mathrm{std.})}L_p^{(\mathrm{std.})\dagger``.
+Replacing it by ``L_p^{(\mathrm{std.})}R_z(\chi)`` leaves ``p`` unchanged but
+multiplies the helicity ket by ``e^{-i\lambda\chi}``; SpinStates preserves this
+otherwise invisible phase in the coefficients.
 
 ## Conventions used in the tutorials
 
